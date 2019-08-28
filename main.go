@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -79,25 +80,11 @@ func processEvent(record e.S3EventRecord) error {
 		return nil
 	}
 
-	mverr := moveFiles(sess)
+	mverr := moveFiles(sess, record)
 	if mverr != nil {
 		return mverr
 	}
 	return nil
-}
-
-func moveFiles(sess *session.Session) error {
-	return nil
-}
-
-func sendEmail(pmd *polmetadata, pdf []byte) error {
-	e := em.NewEmail()
-	e.From = "Kubesure <" + pmd.Email.From + ">"
-	e.To = []string{pmd.Email.To}
-	e.Subject = "Kubesure : EsyHealth - " + strconv.Itoa(pmd.Data.PolicyNumber)
-	ebody := []byte("Hello " + pmd.Data.Name + "," + "\n")
-	e.Text = ebody
-	return e.Send("smtp.gmail.com:587", smtp.PlainAuth("", "edakghar@gmail.com", "", "smtp.gmail.com"))
 }
 
 func policyPDF(sess *session.Session, record e.S3EventRecord) ([]byte, error) {
@@ -121,7 +108,8 @@ func policyMetaData(sess *session.Session, record e.S3EventRecord) (*polmetadata
 	svc := s3.New(sess)
 
 	key := record.S3.Object.Key
-	polNumber := key[strings.Index(key, "/")+1 : strings.Index(key, ".")]
+	//polNumber := key[strings.Index(key, "/")+1 : strings.Index(key, ".")]
+	polNumber := extactPolNo(key)
 
 	input := &s3.GetObjectInput{
 		Bucket: aws.String(record.S3.Bucket.Name),
@@ -143,6 +131,93 @@ func policyMetaData(sess *session.Session, record e.S3EventRecord) (*polmetadata
 	return pmd, nil
 }
 
+func sendEmail(pmd *polmetadata, pdf []byte) error {
+	e := em.NewEmail()
+	e.From = "Kubesure <" + pmd.Email.From + ">"
+	e.To = []string{pmd.Email.To}
+	e.Subject = "Kubesure : EsyHealth - " + strconv.Itoa(pmd.Data.PolicyNumber)
+	msg := `Hello %s,
+				Your policy has been issued and the policy document has been attached.
+				Please use policy number to make any enquiries.
+
+		Best Wishes,
+		Kubesure Customer Service	 
+	    `
+	body := fmt.Sprintf(msg, pmd.Data.Name)
+	ebody := []byte(body)
+	e.Text = ebody
+	e.Attach(bytes.NewReader(pdf), strconv.Itoa(pmd.Data.PolicyNumber), "application/pdf")
+	var err error
+	err = e.Send("smtp.gmail.com:587", smtp.PlainAuth("", "pras.p.in@gmail.com", "", "smtp.gmail.com"))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func moveFiles(sess *session.Session, record e.S3EventRecord) error {
+	svc := s3.New(sess)
+	polNumber := extactPolNo(record.S3.Object.Key)
+	listInput := &s3.ListObjectsInput{
+		Bucket:    aws.String(record.S3.Bucket.Name),
+		Prefix:    aws.String("unprocessed/" + polNumber),
+		Delimiter: aws.String("/"),
+	}
+
+	outputList, err := svc.ListObjects(listInput)
+	if err != nil {
+		log.Println("error while listing objects " + err.Error())
+		return nil
+	}
+
+	//movedkeys := make([]string, 0)
+	//failed := false
+
+	for _, o := range outputList.Contents {
+		fileName := extractFileName(*o.Key)
+		dkey := "processed/" + fileName
+
+		copyInput := &s3.CopyObjectInput{
+			Bucket:     aws.String(record.S3.Bucket.Name),
+			CopySource: aws.String(record.S3.Bucket.Name + "/" + *o.Key),
+			Key:        aws.String("/" + dkey),
+		}
+		_, cerr := svc.CopyObject(copyInput)
+		if cerr != nil {
+			//movedkeys = append(movedkeys, *o.Key)
+			log.Println("copy failed due to " + cerr.Error())
+			//continue
+		}
+		deleteInput := &s3.DeleteObjectInput{
+			Bucket: aws.String(record.S3.Bucket.Name),
+			Key:    o.Key,
+		}
+
+		_, derr := svc.DeleteObject(deleteInput)
+		if derr != nil {
+			log.Println("delete failed due to " + cerr.Error())
+			//movedkeys = append(movedkeys, *o.Key)
+			//continue
+		}
+	}
+
+	/*for _, fo : range movedkeys {
+
+		deleteInput := &s3.DeleteObjectInput{
+			Bucket: aws.String(record.S3.Bucket.Name),
+			Key:    aws.String(dkey),
+		}
+
+		_, derr := svc.DeleteObject(deleteInput)
+		if derr != nil {
+			movedkeys = append(movedkeys, *o.Key)
+			continue
+		}
+	}*/
+
+	return nil
+}
+
 func marshallReq(data string) (*polmetadata, error) {
 	var pd polmetadata
 	err := json.Unmarshal([]byte(data), &pd)
@@ -151,4 +226,16 @@ func marshallReq(data string) (*polmetadata, error) {
 		return nil, err
 	}
 	return &pd, nil
+}
+
+func extactPolNo(key string) string {
+	return key[strings.Index(key, "/")+1 : strings.Index(key, ".")]
+}
+
+func extractExt(key string) string {
+	return key[strings.Index(key, "."):len(key)]
+}
+
+func extractFileName(key string) string {
+	return key[strings.Index(key, "/")+1 : len(key)]
 }
