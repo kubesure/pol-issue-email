@@ -20,6 +20,7 @@ import (
 	em "github.com/jordan-wright/email"
 )
 
+//data of the issue policy
 type policydata struct {
 	Name         string `json:"name"`
 	AddressLine1 string `json:"addressLine1"`
@@ -31,11 +32,13 @@ type policydata struct {
 	PolicyNumber int    `json:"policyNumber"`
 }
 
+//email of the policy holder
 type email struct {
 	From string `json:"from"`
 	To   string `json:"to"`
 }
 
+//composite of poilcy issued meta data
 type polmetadata struct {
 	Email email      `json:"email"`
 	Data  policydata `json:"data"`
@@ -59,6 +62,7 @@ func handler(ctx context.Context, event e.S3Event) (string, error) {
 	return fmt.Sprintf("object processed "), nil
 }
 
+//Sends email to the policy holder with an attachment of the issued policy PDF
 func processEvent(record e.S3EventRecord) error {
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
@@ -87,6 +91,7 @@ func processEvent(record e.S3EventRecord) error {
 	return nil
 }
 
+//reterives policy PDF from S3 unprocessed folder
 func policyPDF(sess *session.Session, record e.S3EventRecord) ([]byte, error) {
 	svc := s3.New(sess)
 	input := &s3.GetObjectInput{
@@ -104,6 +109,7 @@ func policyPDF(sess *session.Session, record e.S3EventRecord) ([]byte, error) {
 	return bodyBytes, nil
 }
 
+//reterives policy meta data from S3 folder.
 func policyMetaData(sess *session.Session, record e.S3EventRecord) (*polmetadata, error) {
 	svc := s3.New(sess)
 
@@ -131,6 +137,7 @@ func policyMetaData(sess *session.Session, record e.S3EventRecord) (*polmetadata
 	return pmd, nil
 }
 
+//Sends email to the policy holder along with an attached policy document
 func sendEmail(pmd *polmetadata, pdf []byte) error {
 	e := em.NewEmail()
 	e.From = "Kubesure <" + pmd.Email.From + ">"
@@ -155,6 +162,7 @@ func sendEmail(pmd *polmetadata, pdf []byte) error {
 	return nil
 }
 
+//move json meta data, html email tempalte and PDF policy document to processed folder.
 func moveFiles(sess *session.Session, record e.S3EventRecord) error {
 	svc := s3.New(sess)
 	polNumber := extactPolNo(record.S3.Object.Key)
