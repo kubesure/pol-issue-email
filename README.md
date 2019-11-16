@@ -76,6 +76,7 @@
     --handler main --runtime go1.x \
     --role arn:aws:iam::708908412990:role/lambda_s3_fullaccess \
     --description "Sends policy PDF email and welcome note to customer." \
+    --environment "Variables={emailuser=user,emailpassword=pass}" \
     --tags "role"="lambda" | jq -r .FunctionArn`  
 
     aws lambda delete-function --function-name esyhealth-pol-issued-email
@@ -113,4 +114,12 @@
     --payload file://test.json \
     --query 'LogResult' \
     --output text |  base64 -d
+```
+
+7. Update function code 
+
+```
+    aws lambda update-function-code \
+    --function-name esyhealth-pol-issued-email \
+    --zip-file fileb://function.zip
 ```

@@ -8,6 +8,7 @@ import (
 	io "io/ioutil"
 	"log"
 	"net/smtp"
+	"os"
 	"strconv"
 	"strings"
 
@@ -154,8 +155,9 @@ func sendEmail(pmd *polmetadata, pdf []byte) error {
 	ebody := []byte(body)
 	e.Text = ebody
 	e.Attach(bytes.NewReader(pdf), strconv.Itoa(pmd.Data.PolicyNumber), "application/pdf")
-	var err error
-	err = e.Send("smtp.gmail.com:587", smtp.PlainAuth("", "pras.p.in@gmail.com", "", "smtp.gmail.com"))
+	//log.Printf("User-- %s -- Password %s", os.Getenv("emailuser"), os.Getenv("emailpassword"))
+	err := e.Send("smtp.gmail.com:587",
+		smtp.PlainAuth("", os.Getenv("emailuser"), os.Getenv("emailpassword"), "smtp.gmail.com"))
 	if err != nil {
 		return err
 	}
