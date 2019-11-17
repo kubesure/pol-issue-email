@@ -2,6 +2,48 @@
   "LambdaFunctionConfigurations": [
     {
       "Id": "esyhealth json put notification",
+      "LambdaFunctionArn": "arn:aws:lambda:us-east-1:708908412990:function:esyhealth-pol-issued-json2html",
+      "Events": [
+        "s3:ObjectCreated:Put"
+      ],
+      "Filter": {
+        "Key": {
+          "FilterRules": [
+            {
+              "Name": "prefix",
+              "Value": "unprocessed/"
+            },
+            {
+              "Name": "suffix",
+              "Value": ".json"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Id": "esyhealth html put notification",
+      "LambdaFunctionArn": "arn:aws:lambda:us-east-1:708908412990:function:esyhealth-pol-issued-pdf-gen",
+      "Events": [
+        "s3:ObjectCreated:Put"
+      ],
+      "Filter": {
+        "Key": {
+          "FilterRules": [
+            {
+              "Name": "prefix",
+              "Value": "unprocessed/"
+            },
+            {
+              "Name": "suffix",
+              "Value": ".html"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Id": "esyhealth pdf put notification",
       "LambdaFunctionArn": "arn:aws:lambda:us-east-1:708908412990:function:esyhealth-pol-issued-email",
       "Events": [
         "s3:ObjectCreated:Put"
@@ -11,11 +53,11 @@
           "FilterRules": [
             {
               "Name": "prefix",
-              "Value": "unprocessed"
+              "Value": "unprocessed/"
             },
             {
               "Name": "suffix",
-              "Value": "json"
+              "Value": ".pdf"
             }
           ]
         }
