@@ -20,7 +20,7 @@ func TestExtractPoilcyNumber(t *testing.T) {
 }
 
 func TestProcessEvent(t *testing.T) {
-	bucket := e.S3Bucket{Name: "kubesure-cs-1"}
+	bucket := e.S3Bucket{Name: "io.kubesure-esyhealth-policy-issued-dev"}
 	object := e.S3Object{Key: "unprocessed/1234567890.pdf"}
 	r := e.S3EventRecord{}
 	r.S3.Bucket = bucket
@@ -76,5 +76,22 @@ func TestExtractExt(t *testing.T) {
 	ext := extractExt(key)
 	if ext != ".pdf" {
 		t.Error("not a pdf ext")
+	}
+}
+
+func TestSwitch(t *testing.T) {
+	files := []int{1, 2, 3}
+
+	for i, _ := range files {
+		switch {
+		case i == 0:
+			log.Println("json")
+		case i == 1:
+			log.Println("html")
+		case i == 2:
+			log.Println("pdf")
+		default:
+			log.Println("error")
+		}
 	}
 }
