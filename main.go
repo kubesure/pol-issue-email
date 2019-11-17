@@ -168,20 +168,17 @@ func sendEmail(pmd *polmetadata, pdf []byte) error {
 func moveFiles(sess *session.Session, record e.S3EventRecord) error {
 	svc := s3.New(sess)
 	polNumber := extactPolNo(record.S3.Object.Key)
-	listInput := &s3.ListObjectsInput{
+	listInput := &s3.ListObjectsV2Input{
 		Bucket:    aws.String(record.S3.Bucket.Name),
 		Prefix:    aws.String("unprocessed/" + polNumber),
 		Delimiter: aws.String("/"),
 	}
 
-	outputList, err := svc.ListObjects(listInput)
+	outputList, err := svc.ListObjectsV2(listInput)
 	if err != nil {
 		log.Println("error while listing objects " + err.Error())
 		return nil
 	}
-
-	//movedkeys := make([]string, 0)
-	//failed := false
 
 	for _, o := range outputList.Contents {
 		fileName := extractFileName(*o.Key)
